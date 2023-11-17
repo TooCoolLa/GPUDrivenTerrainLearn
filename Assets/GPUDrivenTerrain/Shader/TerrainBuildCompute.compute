@@ -26,8 +26,11 @@ StructuredBuffer<uint3> FinalNodeList;
 //保存了Node的一些信息，通过NodeId来访问
 RWStructuredBuffer<NodeDescriptor> NodeDescriptors;
 
+//int MAX_TERRAIN_LOD;
 //表示TraverseQuadTree kernel执行的LOD级别
 uniform uint PassLOD;
+uint SECTOR_COUNT_WORLD;
+
 uniform float3 _CameraPositionWS;
 
 //包围盒在高度方向留出冗余空间，应对MinMaxHeightTexture的精度不足
@@ -38,19 +41,20 @@ uniform float4 _NodeEvaluationC; //节点评价系数。x为距离系数
 //*******世界尺寸参数********//
 //世界大小
 uniform float3 _WorldSize;
-
 //
 /**
 记录了每个Lod级别的(nodeSize,patchExtent,nodeCount,sectorCountPerNode)
 
 其中:
-- nodeSize为Node的边长(米)
-- patchExtent等于nodeSize/16
-- nodeCount等于WorldSize/nodeSize
-- sectorCountPerNode等于2^lod
+- X:nodeSize为Node的边长(米)
+- Y:patchExtent等于nodeSize/16
+- Z:nodeCount等于WorldSize/nodeSize
+- W:sectorCountPerNode等于2^lod
 **/
 uniform float4 WorldLodParams[6];
-
+/**
+{lod5,0}{lod4,25}{lod3,125}{lod2,525}{lod1,2125}{lod0,8525}
+**/
 uniform uint NodeIDOffsetOfLOD[6];
 
 //*****裁剪相关变量*******/
@@ -69,11 +73,20 @@ uniform float4 _HizMapSize;
 uniform float4x4 _HizCameraMatrixVP;
 uniform float3 _HizCameraPositionWS;
 
-
+/**
+ * \brief 
+ * \param lod lod级别
+ * \return 对应lod四叉树节点的边长
+ */
 float GetNodeSize(uint lod){
     return WorldLodParams[lod].x;
 }
 
+/**
+ * \brief 
+ * \param lod Lod级别
+ * \return 边上的节点数量 5:5 4:10 3:20 2:40 1:80 0:160
+ */
 float GetNodeCount(uint lod){
     return WorldLodParams[lod].z;
 }
@@ -82,6 +95,11 @@ float GetPatchExtent(uint lod){
     return WorldLodParams[lod].y;
 }
 
+/**
+ * \brief 
+ * \param lod 
+ * \return 对应lod四叉树的边节点包含的lod0级别四叉树节点的数量，Lod0 是1 返回2^lod
+ */
 uint GetSectorCountPerNode(uint lod){
     return (uint)WorldLodParams[lod].w;
 }
@@ -93,19 +111,30 @@ float2 GetNodePositionWS2(uint2 nodeLoc,uint mip){
     return nodePositionWS;
 }
 
+/**
+ * \brief 
+ * \param nodeLoc Node编号，例如Lod5 (0,0)=>(5,5)
+ * \param lod lod级别
+ * \return Node（四叉树节点）的世界坐标
+ */
 float3 GetNodePositionWS(uint2 nodeLoc,uint lod){
     float2 nodePositionWS = GetNodePositionWS2(nodeLoc,lod);
     float2 minMaxHeight = MinMaxHeightTexture.mips[lod + 3][nodeLoc].xy;
     float y = (minMaxHeight.x + minMaxHeight.y) * 0.5 * _WorldSize.y;
     return float3(nodePositionWS.x,y,nodePositionWS.y);
 }
-
+//节点评估函数，是否需要进一步分割
 bool EvaluateNode(uint2 nodeLoc,uint lod){
     float3 positionWS = GetNodePositionWS(nodeLoc,lod);
+    //获取与相机的距离
     float dis = distance(_CameraPositionWS,positionWS);
+    int idis = round(dis);
     float nodeSize = GetNodeSize(lod);
-    float f = dis / (nodeSize * _NodeEvaluationC.x);
-    if( f < 1){
+    float finalSize = nodeSize * _NodeEvaluationC.x;
+    float ifinalSize = round(finalSize);
+    //如果相机距离小于NodeSize * 评价系数 进一步分割
+    //float f = dis / (nodeSize * _NodeEvaluationC.x);
+    if( idis < ifinalSize ){
         return true;
     }
     return false;
@@ -118,7 +147,7 @@ uint GetNodeId(uint2 nodeLoc,uint mip){
     return GetNodeId(uint3(nodeLoc,mip));
 }
 
-//遍历四叉树，进行节点评价，生成AppendFinalNodeList和NodeDescriptors
+//遍历四叉树，进行节点评价，生成AppendFinalNodeList和NodeDescriptors,起始传入列表为(0,0)=>(5,5)
 [numthreads(1,1,1)]
 void TraverseQuadTree (uint3 id : SV_DispatchThreadID)
 {
@@ -140,12 +169,13 @@ void TraverseQuadTree (uint3 id : SV_DispatchThreadID)
 }
 
 //*****LOD Map部分**********/
-
+//目的是获取每个sector的lod级别
 [numthreads(8,8,1)]
 void BuildLodMap(uint3 id : SV_DispatchThreadID){
     uint2 sectorLoc = id.xy;
+    uint max = MAX_TERRAIN_LOD;
     [unroll]
-    for(uint lod = MAX_TERRAIN_LOD; lod >= 0; lod --){
+    for(uint lod = max; lod >= 0; lod --){
         uint sectorCount = GetSectorCountPerNode(lod);
         uint2 nodeLoc = sectorLoc / sectorCount;
         uint nodeId = GetNodeId(nodeLoc,lod);
@@ -177,6 +207,11 @@ bool IsAABBOutSidePlane(float4 plane,float3 boundsMin,float3 boundsMax){
     IsOutSidePlane(plane,float3(boundsMax.x,boundsMin.y,boundsMin.z));
 }
 
+/**
+ * \brief 获取
+ * \param patch 
+ * \return 
+ */
 Bounds GetPatchBounds(RenderPatch patch){
     float halfSize = GetPatchExtent(patch.lod);
     #if ENABLE_SEAM
@@ -184,8 +219,8 @@ Bounds GetPatchBounds(RenderPatch patch){
     #endif
     Bounds bounds;
     float3 boundsMin,boundsMax;
-    boundsMin.xz = patch.position - halfSize;
-    boundsMax.xz = patch.position + halfSize;
+    boundsMin.xz = patch.position - halfSize - _BoundsHeightRedundance;
+    boundsMax.xz = patch.position + halfSize + _BoundsHeightRedundance;
     boundsMin.y = patch.minMaxHeight.x;
     boundsMax.y = patch.minMaxHeight.y;
 
@@ -321,7 +356,12 @@ bool Cull(Bounds bounds){
     return false;
 }
 
-
+/**
+ * \brief 赋值Patch的lod，position，minMaxHeight,属性
+ * \param nodeLoc 
+ * \param patchOffset 
+ * \return 
+ */
 RenderPatch CreatePatch(uint3 nodeLoc,uint2 patchOffset){
     uint lod = nodeLoc.z;
     float nodeMeterSize = GetNodeSize(lod);
@@ -332,20 +372,27 @@ RenderPatch CreatePatch(uint3 nodeLoc,uint2 patchOffset){
     //经测试，当min和max相差较小时，RG32似乎还是存在精度问题
     float2 minMaxHeight = MinMaxHeightTexture.mips[lod][patchLoc].rg * _WorldSize.y + float2(-_BoundsHeightRedundance,_BoundsHeightRedundance);
     RenderPatch patch;
+    patch.nodeLocXYAndPatchOffsetZW = uint4(nodeLoc.xy,patchOffset);
     patch.lod = lod;
+    patch.perNodeUV = 1.0f / GetNodeCount(lod);
     patch.position = nodePositionWS + (patchOffset - (PATCH_COUNT_PER_NODE - 1) * 0.5) * patchMeterSize;
     patch.minMaxHeight = minMaxHeight;
     patch.lodTrans = 0;
     return patch;
 }
 
-//返回一个node节点覆盖的Sector范围
+//返回一个node节点覆盖的Sector id范围
 uint4 GetSectorBounds(uint3 nodeLoc){
     uint sectorCountPerNode = GetSectorCountPerNode(nodeLoc.z);
     uint2 sectorMin = nodeLoc.xy * sectorCountPerNode;
     return uint4(sectorMin,sectorMin + sectorCountPerNode-1);
 }
 
+/**
+ * \brief 通过SectorID在lodmap里获取Lod级别
+ * \param sectorLoc 
+ * \return 
+ */
 uint GetLod(uint2 sectorLoc){
     if(sectorLoc.x < 0 || sectorLoc.y < 0 || sectorLoc.x >=SECTOR_COUNT_WORLD || sectorLoc.y >= SECTOR_COUNT_WORLD){
         return 0;
@@ -353,10 +400,17 @@ uint GetLod(uint2 sectorLoc){
     return round(_LodMap[sectorLoc].r * MAX_TERRAIN_LOD);
 }
 
+/**
+ * \brief 找出边上Patch的相邻Patch的比自己更高的Lod级别,将差值存储在lodTrans里面
+ * \param patch 
+ * \param nodeLoc 
+ * \param patchOffset 
+ */
 void SetLodTrans(inout RenderPatch patch,uint3 nodeLoc,uint2 patchOffset){
     uint lod = nodeLoc.z;
     uint4 sectorBounds = GetSectorBounds(nodeLoc);
     int4 lodTrans = int4(0,0,0,0);
+    
     if(patchOffset.x == 0){
         //左边缘
         lodTrans.x = GetLod(sectorBounds.xy + int2(-1,0)) - lod;
@@ -379,6 +433,12 @@ void SetLodTrans(inout RenderPatch patch,uint3 nodeLoc,uint2 patchOffset){
     patch.lodTrans = (uint4)max(0,lodTrans);
 }
 
+/**
+ * \brief 相当于每个线程组有这么些线程
+ * \param id 
+ * \param groupId FinalNodeList ID
+ * \param groupThreadId PatchID of One Node
+ */
 [numthreads(8,8,1)]
 void BuildPatches(uint3 id : SV_DispatchThreadID,uint3 groupId:SV_GroupID,uint3 groupThreadId:SV_GroupThreadID){
     uint3 nodeLoc = FinalNodeList[groupId.x];
@@ -397,6 +457,7 @@ void BuildPatches(uint3 id : SV_DispatchThreadID,uint3 groupId:SV_GroupID,uint3 
     BoundsDebug boundsDebug;
     boundsDebug.bounds = bounds;
     boundsDebug.color = float4((bounds.minPosition + _WorldSize * 0.5) / _WorldSize,1);
+    boundsDebug.lod = patch.lod;
     PatchBoundsList.Append(boundsDebug);
     #endif
 }

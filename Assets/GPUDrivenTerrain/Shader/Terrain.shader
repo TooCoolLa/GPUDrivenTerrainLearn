@@ -2,6 +2,7 @@ Shader "GPUTerrainLearn/Terrain"
 {
     Properties
     {
+        _BaseColor ("Texture", 2D) = "white" {}
         _MainTex ("Texture", 2D) = "white" {}
         _HeightMap ("Texture", 2D) = "white" {}
         _NormalMap ("Texture", 2D) = "white" {}
@@ -32,7 +33,7 @@ Shader "GPUTerrainLearn/Terrain"
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
-                uint instanceID : SV_InstanceID;
+                uint instanceID : SV_INSTANCEID;
             };
 
             struct v2f
@@ -40,9 +41,12 @@ Shader "GPUTerrainLearn/Terrain"
                 float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
                 half3 color: TEXCOORD1;
+                float2 uvglobal : TEXCOORD2;
             };
 
             sampler2D _MainTex;
+            sampler2D _BaseColor;
+            float4 _BaseColor_ST;
             float4 _MainTex_ST;
             sampler2D _HeightMap;
             sampler2D _NormalMap;
@@ -72,12 +76,12 @@ Shader "GPUTerrainLearn/Terrain"
             }
 
 
-            //修复接缝
+            //修复接缝，只有边上的需要移动，角上的不需要移动
             void FixLODConnectSeam(inout float4 vertex,inout float2 uv,RenderPatch patch){
                 uint4 lodTrans = patch.lodTrans;
                 uint2 vertexIndex = floor((vertex.xz + PATCH_MESH_SIZE * 0.5 + 0.01) / PATCH_MESH_GRID_SIZE);
                 float uvGridStrip = 1.0/PATCH_MESH_GRID_COUNT;
-
+                //左
                 uint lodDelta = lodTrans.x;
                 if(lodDelta > 0 && vertexIndex.x == 0){
                     uint gridStripCount = pow(2,lodDelta);
@@ -88,7 +92,7 @@ Shader "GPUTerrainLearn/Terrain"
                         return;
                     }
                 }
-
+                //下
                 lodDelta = lodTrans.y;
                 if(lodDelta > 0 && vertexIndex.y == 0){
                     uint gridStripCount = pow(2,lodDelta);
@@ -99,7 +103,7 @@ Shader "GPUTerrainLearn/Terrain"
                         return;
                     }
                 }
-
+                //右
                 lodDelta = lodTrans.z;
                 if(lodDelta > 0 && vertexIndex.x == PATCH_MESH_GRID_COUNT){
                     uint gridStripCount = pow(2,lodDelta);
@@ -110,7 +114,7 @@ Shader "GPUTerrainLearn/Terrain"
                         return;
                     }
                 }
-
+                //上
                 lodDelta = lodTrans.w;
                 if(lodDelta > 0 && vertexIndex.y == PATCH_MESH_GRID_COUNT){
                     uint gridStripCount = pow(2,lodDelta);
@@ -144,13 +148,17 @@ uniform float4x4 _HizCameraMatrixVP;
             v2f vert (appdata v)
             {
                 v2f o;
-                
-                float4 inVertex = v.vertex;
+                //输入的顶点坐标
+                float4 vertexWS = v.vertex;
                 float2 uv = v.uv;
-
+                
                 RenderPatch patch = PatchList[v.instanceID];
+                //一个Node使用8个Patch渲染
+                float perPatchUV = patch.perNodeUV / 8.0;
+                float2 uvInGlobal = patch.perNodeUV * patch.nodeLocXYAndPatchOffsetZW.xy +  perPatchUV * patch.nodeLocXYAndPatchOffsetZW.zw + uv * perPatchUV;
+                o.uvglobal = uvInGlobal;
                 #if ENABLE_LOD_SEAMLESS
-                FixLODConnectSeam(inVertex,uv,patch);
+                FixLODConnectSeam(vertexWS,uv,patch);
                 #endif
                 uint lod = patch.lod;
                 float scale = pow(2,lod);
@@ -158,25 +166,25 @@ uniform float4x4 _HizCameraMatrixVP;
                 uint4 lodTrans = patch.lodTrans;
                 
 
-                inVertex.xz *= scale;
+                vertexWS.xz *= scale;
                 #if ENABLE_PATCH_DEBUG
-                inVertex.xz *= 0.9;
+                vertexWS.xz *= 0.9;
                 #endif
-                inVertex.xz += patch.position;
+                vertexWS.xz += patch.position;
 
                 #if ENABLE_NODE_DEBUG
-                inVertex.xyz = ApplyNodeDebug(patch,inVertex.xyz);
+                vertexWS.xyz = ApplyNodeDebug(patch,vertexWS.xyz);
                 #endif
 
-                float2 heightUV = (inVertex.xz + (_WorldSize.xz * 0.5) + 0.5) / (_WorldSize.xz + 1);
+                float2 heightUV = (vertexWS.xz + (_WorldSize.xz * 0.5) + 0.5) / (_WorldSize.xz + 1);
                 float height = tex2Dlod(_HeightMap,float4(heightUV,0,0)).r;
-                inVertex.y = height * _WorldSize.y;
+                vertexWS.y = height * _WorldSize.y;
 
                 float3 normal = SampleNormal(heightUV);
                 Light light = GetMainLight();
                 o.color = max(0.05,dot(light.direction,normal));
 
-                float4 vertex = TransformObjectToHClip(inVertex.xyz);
+                float4 vertex = TransformObjectToHClip(vertexWS.xyz);
                 o.vertex = vertex;
                 o.uv = uv * scale * 8;
 
@@ -196,7 +204,9 @@ uniform float4x4 _HizCameraMatrixVP;
             half4 frag (v2f i) : SV_Target
             {
                 // sample the texture
-                half4 col = tex2D(_MainTex, i.uv);
+                //half4 col = tex2D(_MainTex, i.uv);
+                half4 col = tex2D(_BaseColor, i.uvglobal);
+                col.rgb = (col.rgb + 0.5) / 2.0;
                 col.rgb *= i.color;
                 return col;
             }

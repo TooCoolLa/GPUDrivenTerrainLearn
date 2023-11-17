@@ -47,8 +47,7 @@ namespace GPUDrivenTerrainLearn
                 Debug.LogWarning("必须选中Texture2D");
             }
         }
-
-
+        
         public static void GenerateNormalMapFromHeightMap(Texture2D heightMap,System.Action<Texture2D> callback){
             var rtdesc = new RenderTextureDescriptor(heightMap.width,heightMap.height,RenderTextureFormat.RG32);
             rtdesc.enableRandomWrite = true;

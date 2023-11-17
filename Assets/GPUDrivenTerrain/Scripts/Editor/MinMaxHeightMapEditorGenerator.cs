@@ -9,7 +9,7 @@ namespace GPUDrivenTerrainLearn
     public class MinMaxHeightMapEditorGenerator
     {
         private static ComputeShader _computeShader;
-        private const int patchMapSize = 1280;
+        private int patchMapSize = 4096;
 
         private static ComputeShader computeShader{
             get{
@@ -19,11 +19,13 @@ namespace GPUDrivenTerrainLearn
                 return _computeShader;
             }
         }
-        private Texture2D _heightmap;
+        private Texture _heightmap;
         private string _dir;
-        
-        public MinMaxHeightMapEditorGenerator(Texture2D heightMap){
+        private Object mObj;
+        public MinMaxHeightMapEditorGenerator(Texture heightMap,int Size = 1280,Object obj = null){
             _heightmap = heightMap;
+            patchMapSize = Size;
+            mObj = obj;
         }
 
         private RenderTexture CreateMinMaxHeightTexture(int texSize){
@@ -62,7 +64,7 @@ namespace GPUDrivenTerrainLearn
         }
 
         private void EnsureDir(){
-            var heightMapPath = AssetDatabase.GetAssetPath(_heightmap);
+            var heightMapPath = AssetDatabase.GetAssetPath(_heightmap is Texture2D ? _heightmap : mObj);
             var dir = System.IO.Path.GetDirectoryName(heightMapPath);
             var heightMapName = System.IO.Path.GetFileNameWithoutExtension(heightMapPath);
             _dir = $"{dir}/{heightMapName}";

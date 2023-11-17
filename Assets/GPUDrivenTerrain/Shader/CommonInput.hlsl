@@ -3,7 +3,7 @@
 
 //最大的LOD级别是5
 #define MAX_TERRAIN_LOD 5
-#define MAX_NODE_ID 34124
+//#define MAX_NODE_ID 34124
 
 //一个PatchMesh由16x16网格组成
 #define PATCH_MESH_GRID_COUNT 16
@@ -17,7 +17,7 @@
 //PatchMesh一个格子的大小为0.5x0.5
 #define PATCH_MESH_GRID_SIZE 0.5
 
-#define SECTOR_COUNT_WORLD 160
+//#define SECTOR_COUNT_WORLD 320//160
 
 
 struct NodeDescriptor{
@@ -28,7 +28,12 @@ struct RenderPatch{
     float2 position;
     float2 minMaxHeight;
     uint lod;
+    /**
+     * \brief 上下左右的lod差值
+     */
     uint4 lodTrans;
+    uint4 nodeLocXYAndPatchOffsetZW;
+    float perNodeUV;
 };
 
 
@@ -40,6 +45,7 @@ struct Bounds{
 struct BoundsDebug{
     Bounds bounds;
     float4 color;
+    uint lod;
 };
 
 #endif

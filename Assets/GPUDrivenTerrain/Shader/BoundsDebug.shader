@@ -46,10 +46,9 @@ Shader "GPUTerrainLearn/BoundsDebug"
                 Bounds bounds = boundsDebug.bounds;
 
                 float3 center = (bounds.minPosition + bounds.maxPosition) * 0.5;
-
-                float3 scale = (bounds.maxPosition - center) / 0.5;
-
-                inVertex.xyz = inVertex.xyz * scale + center;
+                float3 scale = (bounds.maxPosition - center) ;
+                float factor = pow(2,boundsDebug.lod); //length(scale);
+                inVertex.xyz = inVertex.xyz * factor + center;
 
                 float4 vertex = TransformObjectToHClip(inVertex.xyz);
                 o.vertex = vertex;

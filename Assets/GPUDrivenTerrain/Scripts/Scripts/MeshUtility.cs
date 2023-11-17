@@ -6,14 +6,16 @@ namespace GPUDrivenTerrainLearn
 {
     public class MeshUtility
     {
+        //创建size*size个顶点的平面,size指的是边上的顶点数
         public static Mesh CreatePlaneMesh(int size){
             var mesh = new Mesh();
-           
+           //一个unit半米
             var sizePerGrid = 0.5f;
             var totalMeterSize = size * sizePerGrid;
             var gridCount = size * size;
+            //单个网格是一个四边形（quad）单个四边形由两个三角形组成
             var triangleCount = gridCount * 2;
-
+            //
             var vOffset = - totalMeterSize * 0.5f;
 
             List<Vector3> vertices = new List<Vector3>();

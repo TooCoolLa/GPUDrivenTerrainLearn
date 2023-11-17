@@ -4,6 +4,7 @@ using UnityEngine;
 
 namespace GPUDrivenTerrainLearn
 {
+    [ExecuteInEditMode]
     public class GPUTerrain : MonoBehaviour
     {
         public TerrainAsset terrainAsset;
@@ -57,6 +58,7 @@ namespace GPUDrivenTerrainLearn
                 material.SetTexture("_HeightMap",terrainAsset.heightMap);
                 material.SetTexture("_NormalMap",terrainAsset.normalMap);
                 material.SetTexture("_MainTex",terrainAsset.albedoMap);
+                material.SetTexture("_BaseColor",terrainAsset.baseColorMap);
                 material.SetBuffer("PatchList",_traverse.culledPatchBuffer);
                 _terrainMaterial = material;
                 this.UpdateTerrainMaterialProeprties();
@@ -126,9 +128,10 @@ namespace GPUDrivenTerrainLearn
             if(_isTerrainMaterialDirty){
                 this.UpdateTerrainMaterialProeprties();
             }
-            Graphics.DrawMeshInstancedIndirect(TerrainAsset.patchMesh,0,terrainMaterial,new Bounds(Vector3.zero,Vector3.one * 10240),_traverse.patchIndirectArgs);
+            //_traverse.patchIndirectArgs args[0]：网格的索引数，表示每个实例要绘制多少个三角形
+            Graphics.DrawMeshInstancedIndirect(TerrainAsset.patchMesh,0,terrainMaterial,new Bounds(Vector3.zero,Vector3.one * _traverse.GetWorldSize().x),_traverse.patchIndirectArgs);
             if(patchBoundsDebug){
-                Graphics.DrawMeshInstancedIndirect(TerrainAsset.unitCubeMesh,0,terrainAsset.boundsDebugMaterial,new Bounds(Vector3.zero,Vector3.one * 10240),_traverse.boundsIndirectArgs);
+                Graphics.DrawMeshInstancedIndirect(TerrainAsset.unitCubeMesh,0,terrainAsset.boundsDebugMaterial,new Bounds(Vector3.zero,Vector3.one * _traverse.GetWorldSize().x),_traverse.boundsIndirectArgs);
             }
         }
     }

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b201df05d5b9b4cfbaafebefa76ec44f, type: 3}
+  m_Name: Terrain 1
+  m_EditorClassIdentifier: 
+  _worldSize: {x: 10240, y: 2048, z: 10240}
+  _albedoMap: {fileID: 10309, guid: 0000000000000000f000000000000000, type: 0}
+  _heightMap: {fileID: 2800000, guid: c440e38d2e11cfc41ada1668c930180f, type: 3}
+  _normalMap: {fileID: 2800000, guid: 004f35c4831cb2447917ec10cae90ce0, type: 3}
+  _minMaxHeightMaps:
+  - {fileID: 2800000, guid: 9b77bcbbcf4bd2444a929f86253b7a6c, type: 3}
+  - {fileID: 2800000, guid: 7837855ef5630f74baac15a39baf5d9e, type: 3}
+  - {fileID: 2800000, guid: 215cd06c2ac529844990cd7f53e0b8d8, type: 3}
+  - {fileID: 2800000, guid: 69c5eb1896a5fd141a02e5ded63144d7, type: 3}
+  - {fileID: 2800000, guid: 78053d51e5918b44d9b63c68994a3016, type: 3}
+  - {fileID: 2800000, guid: d0d80cf985fa65b4bb16b1b2029e11b0, type: 3}
+  - {fileID: 2800000, guid: 2293d20677e2bfc45983fe2b2e25dc00, type: 3}
+  - {fileID: 2800000, guid: 3cb316ba92a6f624cad11b1886495217, type: 3}
+  - {fileID: 2800000, guid: 9d90075a717a2134a81d130a5f575b8f, type: 3}
+  _quadTreeMaps: []
+  _terrainCompute: {fileID: 7200000, guid: 501b8a349b19a4bc6b6100655a7fb53b, type: 3}
