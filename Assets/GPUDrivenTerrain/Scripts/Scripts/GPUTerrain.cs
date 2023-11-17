@@ -96,9 +96,7 @@ namespace GPUDrivenTerrainLearn
         }
 
 
-        void OnValidate(){
-            this.ApplySettings();
-        }
+       
 
         private void ApplySettings(){
             if(_traverse != null){
@@ -114,9 +112,19 @@ namespace GPUDrivenTerrainLearn
         }
 
         void OnDestroy(){
-            _traverse.Dispose();
+            if (_traverse == null)
+            {
+                _traverse = new TerrainBuilder(terrainAsset);
+                terrainAsset.boundsDebugMaterial.SetBuffer("BoundsList",_traverse.patchBoundsBuffer);
+            }
+            if (_traverse != null)
+                _traverse.Dispose();
         }
-
+#if UNITY_EDITOR
+        void OnValidate(){
+            this.ApplySettings();
+        }
+#endif
 
         void Update()
         {

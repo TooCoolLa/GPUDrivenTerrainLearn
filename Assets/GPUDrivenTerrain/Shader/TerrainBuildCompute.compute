@@ -127,7 +127,7 @@ float3 GetNodePositionWS(uint2 nodeLoc,uint lod){
 bool EvaluateNode(uint2 nodeLoc,uint lod){
     float3 positionWS = GetNodePositionWS(nodeLoc,lod);
     //获取与相机的距离
-    float dis = distance(_CameraPositionWS,positionWS);
+    float dis = distance(_CameraPositionWS.xz,positionWS.xz);
     int idis = round(dis);
     float nodeSize = GetNodeSize(lod);
     float finalSize = nodeSize * _NodeEvaluationC.x;

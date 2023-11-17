@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Unity.Mathematics;
@@ -382,13 +383,13 @@ namespace GPUDrivenTerrainLearn
                     }
                 }
 
-                foreach (var (key, terrainPatch) in terrainPatches)
-                {
-                    //Debug.Log($"<color=green>Lod{terrainPatch.Lod} Pos({terrainPatch.X},{terrainPatch.Y})</color>");
-                }
+                // foreach (var (key, terrainPatch) in terrainPatches)
+                // {
+                //     Debug.Log($"<color=green>Lod{terrainPatch.Lod} Pos({terrainPatch.X},{terrainPatch.Y})</color>");
+                // }
 
-                
-                for (int i = 5; i >= 0; i--)
+                stringBuilder.Clear();
+                for (int i = 0; i < 6; i++)
                 {
                     var dictionary = terrainPatches;
                     var lodCount = dictionary.Count(x => x.Value.Lod == i);
@@ -397,11 +398,14 @@ namespace GPUDrivenTerrainLearn
                     {
                         maxCounts[i] = lodCount;
                     }
-                    //Debug.Log($"Lod{i}:{lodCount} MaxCount{max}");
+
+                    stringBuilder.Append($" Lod{i}:{lodCount} MaxCount{max}");
                 }
+                Debug.Log(stringBuilder.ToString());
             }
         }
-
+        
+        private StringBuilder stringBuilder = new StringBuilder(32);
         private int[] maxCounts = new int[6];
         ComputeBuffer counterBuffer = new ComputeBuffer(1, sizeof(int), ComputeBufferType.IndirectArguments);
         int[] counter = new int[1];

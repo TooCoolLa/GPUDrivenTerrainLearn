@@ -11,6 +11,7 @@ namespace GPUDrivenTerrainLearn
     public enum TextureType : sbyte
     {
         HeightMap,
+        MinMaxHeightMap,
         Layer1,
         Layer1Normal,
         Layer2,
@@ -50,8 +51,10 @@ namespace GPUDrivenTerrainLearn
         private readonly List<int[]> HeightMapLodSize = new List<int[]>()
         {
             //HeightMap
-            new int[] {1024,2560,2560,1280,640,320 },
-            //L1
+            new int[] { 1024, 2560, 2560, 1280, 640, 320 },
+            //MinMaxHeightMap
+            new int[] { 2560,1280,640,320,160,80 },
+            //L1    
             new int[] {2560,2560,1280,640,320,160 },
             //L1n
             new int[] {2560,2560,1280,640,320,160 },
@@ -114,7 +117,10 @@ namespace GPUDrivenTerrainLearn
             this.mono = monoBehaviour;
             
         }
-
+        /// <summary>
+        /// Update每帧更新
+        /// </summary>
+        /// <param name="requests"></param>
         public void Update(List<TerrainBuilder.TerrainPatch> requests)
         {
             var afterSort = requests.OrderBy(x => x.Lod);
@@ -175,7 +181,7 @@ namespace GPUDrivenTerrainLearn
 
         #region 纹理处理
         /// <summary>
-        /// 
+        /// 将Mipmap拷贝到不同的地方
         /// </summary>
         /// <param name="requests"></param>
         private void Copy2Mipmap(IEnumerable<TerrainBuilder.TerrainPatch> requests)

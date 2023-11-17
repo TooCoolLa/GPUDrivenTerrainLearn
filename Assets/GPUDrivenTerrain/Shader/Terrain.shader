@@ -39,6 +39,9 @@ Shader "GPUTerrainLearn/Terrain"
             struct v2f
             {
                 float2 uv : TEXCOORD0;
+                float4 uv1 : TEXCOORD03;
+                float4 uv2 : TEXCOORD9;
+                 float4 uv3 : TEXCOORD10;
                 float4 vertex : SV_POSITION;
                 half3 color: TEXCOORD1;
                 float2 uvglobal : TEXCOORD2;
